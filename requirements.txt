@@ -1,0 +1,31 @@
+# Core Data Science & Math
+pandas>=2.2.0
+numpy>=2.0.0
+scipy>=1.13.0
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+plotly>=5.20.0
+
+# Machine Learning
+scikit-learn>=1.5.0
+xgboost>=2.0.0
+joblib>=1.4.0
+
+# API Backend
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+python-dotenv>=1.0.0
+
+# Frontend Dashboard
+streamlit>=1.35.0
+
+# Networking & Utilities
+requests>=2.32.0
+
+# Testing & Quality Assurance
+pytest>=8.2.0
+httpx>=0.27.0
