@@ -138,6 +138,7 @@ def get_feature_names(preprocessor: ColumnTransformer) -> List[str]:
 def prepare_and_split_data(
     test_size: Optional[float] = None,
     random_state: Optional[int] = None,
+    use_feature_engineering: bool = True,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, ColumnTransformer]:
     """Load raw dataset, clean features, and split into train/test sets using stratification.
 
@@ -147,10 +148,13 @@ def prepare_and_split_data(
     Args:
         test_size: Proportion of data for test split (default from settings).
         random_state: Random seed for reproducibility (default from settings).
+        use_feature_engineering: If True, applies CustomerFeatureEngineer domain features.
 
     Returns:
         Tuple of (X_train_df, X_test_df, y_train, y_test, fitted_preprocessor).
     """
+    from src.feature_engineering import CustomerFeatureEngineer
+
     test_size = test_size if test_size is not None else settings.TEST_SIZE
     random_state = random_state if random_state is not None else settings.RANDOM_STATE
 
@@ -170,22 +174,31 @@ def prepare_and_split_data(
         stratify=y,
     )
 
-    # Step 3: Identify feature types
-    num_cols, cat_cols = identify_feature_types(X_raw)
+    # Step 3: Feature Engineering (if enabled)
+    if use_feature_engineering:
+        fe = CustomerFeatureEngineer()
+        X_train_processed = fe.fit_transform(X_train_raw)
+        X_test_processed = fe.transform(X_test_raw)
+    else:
+        X_train_processed = X_train_raw.copy()
+        X_test_processed = X_test_raw.copy()
 
-    # Step 4: Build ColumnTransformer
+    # Step 4: Identify feature types from engineered training set
+    num_cols, cat_cols = identify_feature_types(X_train_processed)
+
+    # Step 5: Build ColumnTransformer
     preprocessor = build_preprocessor(num_cols, cat_cols, scale_numeric=True)
 
-    # Step 5: Fit preprocessor strictly on training data
-    preprocessor.fit(X_train_raw)
+    # Step 6: Fit preprocessor strictly on training data
+    preprocessor.fit(X_train_processed)
 
-    # Step 6: Transform train and test features
+    # Step 7: Transform train and test features
     feature_names = get_feature_names(preprocessor)
-    X_train_arr = preprocessor.transform(X_train_raw)
-    X_test_arr = preprocessor.transform(X_test_raw)
+    X_train_arr = preprocessor.transform(X_train_processed)
+    X_test_arr = preprocessor.transform(X_test_processed)
 
-    X_train_df = pd.DataFrame(X_train_arr, columns=feature_names, index=X_train_raw.index)
-    X_test_df = pd.DataFrame(X_test_arr, columns=feature_names, index=X_test_raw.index)
+    X_train_df = pd.DataFrame(X_train_arr, columns=feature_names, index=X_train_processed.index)
+    X_test_df = pd.DataFrame(X_test_arr, columns=feature_names, index=X_test_processed.index)
 
     return X_train_df, X_test_df, y_train, y_test, preprocessor
 
