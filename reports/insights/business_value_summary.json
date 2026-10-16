@@ -1,0 +1,128 @@
+{
+  "business_parameters": {
+    "avg_monthly_charges": 64.76,
+    "customer_lifetime_months": 24,
+    "gross_margin_rate": 0.75,
+    "intervention_cost": 50.0,
+    "intervention_success_rate": 0.3,
+    "customer_acquisition_cost": 350.0
+  },
+  "operating_points": {
+    "default_0_50": {
+      "threshold": 0.5,
+      "confusion_matrix": {
+        "tp": 302,
+        "fp": 286,
+        "fn": 72,
+        "tn": 749
+      },
+      "total_customers": 1409,
+      "total_actual_churners": 374,
+      "total_interventions": 588,
+      "churners_saved": 90.6,
+      "total_intervention_cost": 29400.0,
+      "gross_preserved_value": 105610.61,
+      "net_financial_benefit": 76210.61,
+      "roi_percentage": 259.2,
+      "baseline_churn_loss": 435964.32,
+      "blanket_net_benefit": 60339.3,
+      "params": {
+        "avg_monthly_charges": 64.76,
+        "customer_lifetime_months": 24,
+        "gross_margin_rate": 0.75,
+        "intervention_cost": 50.0,
+        "intervention_success_rate": 0.3,
+        "customer_acquisition_cost": 350.0
+      }
+    },
+    "calibrated_optimal_0_54": {
+      "threshold": 0.54,
+      "confusion_matrix": {
+        "tp": 296,
+        "fp": 248,
+        "fn": 78,
+        "tn": 787
+      },
+      "total_customers": 1409,
+      "total_actual_churners": 374,
+      "total_interventions": 544,
+      "churners_saved": 88.8,
+      "total_intervention_cost": 27200.0,
+      "gross_preserved_value": 103512.38,
+      "net_financial_benefit": 76312.38,
+      "roi_percentage": 280.6,
+      "baseline_churn_loss": 435964.32,
+      "blanket_net_benefit": 60339.3,
+      "params": {
+        "avg_monthly_charges": 64.76,
+        "customer_lifetime_months": 24,
+        "gross_margin_rate": 0.75,
+        "intervention_cost": 50.0,
+        "intervention_success_rate": 0.3,
+        "customer_acquisition_cost": 350.0
+      }
+    },
+    "conservative_0_60": {
+      "threshold": 0.6,
+      "confusion_matrix": {
+        "tp": 269,
+        "fp": 199,
+        "fn": 105,
+        "tn": 836
+      },
+      "total_customers": 1409,
+      "total_actual_churners": 374,
+      "total_interventions": 468,
+      "churners_saved": 80.7,
+      "total_intervention_cost": 23400.0,
+      "gross_preserved_value": 94070.38,
+      "net_financial_benefit": 70670.38,
+      "roi_percentage": 302.0,
+      "baseline_churn_loss": 435964.32,
+      "blanket_net_benefit": 60339.3,
+      "params": {
+        "avg_monthly_charges": 64.76,
+        "customer_lifetime_months": 24,
+        "gross_margin_rate": 0.75,
+        "intervention_cost": 50.0,
+        "intervention_success_rate": 0.3,
+        "customer_acquisition_cost": 350.0
+      }
+    }
+  },
+  "retention_tier_distribution": {
+    "Tier 5: Loyal / Healthy": 669,
+    "Tier 1: VIP High-Risk": 259,
+    "Tier 3: Moderate Risk": 203,
+    "Tier 4: Early Watchlist": 196,
+    "Tier 2: Standard High-Risk": 82
+  },
+  "ab_testing_specification": {
+    "experiment_name": "Proactive_Churn_Retention_Engine_v1",
+    "target_population": "Subscribers with Model Churn Probability >= 0.54",
+    "sample_split": "50% Treatment (Proactive Retention Playbook) vs 50% Control (Business-as-Usual / No Offer)",
+    "randomization_unit": "customerID (Stratified by tenure cohort and monthly charges tier)",
+    "duration_days": 60,
+    "statistical_parameters": {
+      "significance_level_alpha": 0.05,
+      "statistical_power": 0.8,
+      "baseline_churn_rate_targeted": 0.544,
+      "minimum_detectable_effect_abs": 0.08,
+      "required_sample_size_per_variant": 590
+    },
+    "primary_metrics": [
+      "30-day and 60-day Retained Customer Rate (1 - Churn)",
+      "Net Revenue Retention (NRR) in USD"
+    ],
+    "secondary_guardrail_metrics": [
+      "Average Revenue Per User (ARPU) post-discount (monitoring margin erosion)",
+      "Opt-out / Unsubscribe rate from marketing communications (monitoring contact fatigue)",
+      "Inbound Support Ticket Volume"
+    ],
+    "risk_mitigation_and_guardrails": [
+      "Exclude customers with active open escalation tickets or fraud investigations",
+      "Cap total promotional discount budget at $35,000 for the 60-day pilot",
+      "Hash-based deterministic customer assignment to guarantee no cross-group contamination"
+    ]
+  }
+}

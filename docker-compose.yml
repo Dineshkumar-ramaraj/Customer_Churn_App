@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: churn_prediction_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    volumes:
+      - ./models:/app/models:ro
+      - ./reports:/app/reports
+    command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: churn_analytics_dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - ENVIRONMENT=production
+      - STREAMLIT_PORT=8501
+    volumes:
+      - ./models:/app/models:ro
+      - ./reports:/app/reports
+      - ./data:/app/data:ro
+    command: ["streamlit", "run", "app/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+networks:
+  default:
+    name: churn_network

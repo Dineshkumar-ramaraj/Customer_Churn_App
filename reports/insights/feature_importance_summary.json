@@ -1,0 +1,150 @@
+{
+  "top_xgboost_gain_features": [
+    {
+      "Feature": "Contract_Month-to-month",
+      "Importance (Gain)": 0.3608655631542206
+    },
+    {
+      "Feature": "InternetService_Fiber optic",
+      "Importance (Gain)": 0.07587930560112
+    },
+    {
+      "Feature": "OnlineSecurity_No",
+      "Importance (Gain)": 0.06256644427776337
+    },
+    {
+      "Feature": "charges_per_service",
+      "Importance (Gain)": 0.048945892602205276
+    },
+    {
+      "Feature": "is_fiber_no_techsupport",
+      "Importance (Gain)": 0.045510537922382355
+    },
+    {
+      "Feature": "PaymentMethod_Electronic check",
+      "Importance (Gain)": 0.030071035027503967
+    },
+    {
+      "Feature": "Contract_Two year",
+      "Importance (Gain)": 0.029854288324713707
+    },
+    {
+      "Feature": "StreamingMovies_Yes",
+      "Importance (Gain)": 0.021737661212682724
+    },
+    {
+      "Feature": "StreamingMovies_No",
+      "Importance (Gain)": 0.020541444420814514
+    },
+    {
+      "Feature": "Contract_One year",
+      "Importance (Gain)": 0.02011662721633911
+    }
+  ],
+  "top_permutation_features": [
+    {
+      "Feature": "Contract",
+      "Mean_Importance": 0.08154976878762041,
+      "Std_Importance": 0.006697564963362865
+    },
+    {
+      "Feature": "TotalCharges",
+      "Mean_Importance": 0.04262161254488621,
+      "Std_Importance": 0.004059563768902735
+    },
+    {
+      "Feature": "MonthlyCharges",
+      "Mean_Importance": 0.036798935648040446,
+      "Std_Importance": 0.007124643708354462
+    },
+    {
+      "Feature": "InternetService",
+      "Mean_Importance": 0.007314578005115013,
+      "Std_Importance": 0.003697067192382327
+    },
+    {
+      "Feature": "tenure",
+      "Mean_Importance": 0.0065749567284093535,
+      "Std_Importance": 0.0010624096435764498
+    },
+    {
+      "Feature": "OnlineSecurity",
+      "Mean_Importance": 0.005590947841587157,
+      "Std_Importance": 0.0005516227654766578
+    },
+    {
+      "Feature": "TechSupport",
+      "Mean_Importance": 0.005032679738562052,
+      "Std_Importance": 0.0010748923724315078
+    },
+    {
+      "Feature": "MultipleLines",
+      "Mean_Importance": 0.004571029993024833,
+      "Std_Importance": 0.0006575337352352345
+    },
+    {
+      "Feature": "PhoneService",
+      "Mean_Importance": 0.0035764292541786034,
+      "Std_Importance": 0.0010952079085603153
+    },
+    {
+      "Feature": "StreamingMovies",
+      "Mean_Importance": 0.003032628070991161,
+      "Std_Importance": 0.001282528782336384
+    }
+  ],
+  "top_positive_log_odds_features": [
+    {
+      "Feature": "InternetService_Fiber optic",
+      "Coefficient (Log-Odds)": 0.8199429890820658,
+      "Odds Ratio": 2.2703703979422687
+    },
+    {
+      "Feature": "Contract_Month-to-month",
+      "Coefficient (Log-Odds)": 0.7248298192388016,
+      "Odds Ratio": 2.0643797523533745
+    },
+    {
+      "Feature": "total_services",
+      "Coefficient (Log-Odds)": 0.3657624649149523,
+      "Odds Ratio": 1.4416127683697566
+    },
+    {
+      "Feature": "tenure_cohort_49-72m",
+      "Coefficient (Log-Odds)": 0.3440391125367015,
+      "Odds Ratio": 1.4106338078952891
+    },
+    {
+      "Feature": "StreamingMovies_Yes",
+      "Coefficient (Log-Odds)": 0.21689059342540704,
+      "Odds Ratio": 1.2422081889601164
+    }
+  ],
+  "top_negative_log_odds_features": [
+    {
+      "Feature": "tenure_cohort_13-24m",
+      "Coefficient (Log-Odds)": -0.3692868882512905,
+      "Odds Ratio": 0.6912270770745246
+    },
+    {
+      "Feature": "MonthlyCharges",
+      "Coefficient (Log-Odds)": -0.6617513200857367,
+      "Odds Ratio": 0.5159469545288148
+    },
+    {
+      "Feature": "InternetService_DSL",
+      "Coefficient (Log-Odds)": -0.7230399529690273,
+      "Odds Ratio": 0.4852747988321801
+    },
+    {
+      "Feature": "Contract_Two year",
+      "Coefficient (Log-Odds)": -0.862237074470231,
+      "Odds Ratio": 0.422216495295269
+    },
+    {
+      "Feature": "tenure",
+      "Coefficient (Log-Odds)": -0.9851222982476648,
+      "Odds Ratio": 0.37339355876622277
+    }
+  ]
+}

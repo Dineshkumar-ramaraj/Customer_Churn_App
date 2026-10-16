@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-10-16T20:57:55.417470",
+  "reference_records": 5634,
+  "current_records": 1409,
+  "features": {
+    "gender": {
+      "type": "categorical",
+      "psi": 0.0004,
+      "status": "STABLE"
+    },
+    "SeniorCitizen": {
+      "type": "numerical",
+      "psi": 0.0,
+      "ks_statistic": 0.0057,
+      "ks_pvalue": 1.0,
+      "status": "STABLE"
+    },
+    "Partner": {
+      "type": "categorical",
+      "psi": 0.0002,
+      "status": "STABLE"
+    },
+    "Dependents": {
+      "type": "categorical",
+      "psi": 0.0003,
+      "status": "STABLE"
+    },
+    "tenure": {
+      "type": "numerical",
+      "psi": 0.0067,
+      "ks_statistic": 0.0212,
+      "ks_pvalue": 0.6835,
+      "status": "STABLE"
+    },
+    "PhoneService": {
+      "type": "categorical",
+      "psi": 0.0017,
+      "status": "STABLE"
+    },
+    "MultipleLines": {
+      "type": "categorical",
+      "psi": 0.003,
+      "status": "STABLE"
+    },
+    "InternetService": {
+      "type": "categorical",
+      "psi": 0.0002,
+      "status": "STABLE"
+    },
+    "OnlineSecurity": {
+      "type": "categorical",
+      "psi": 0.0003,
+      "status": "STABLE"
+    },
+    "OnlineBackup": {
+      "type": "categorical",
+      "psi": 0.0044,
+      "status": "STABLE"
+    },
+    "DeviceProtection": {
+      "type": "categorical",
+      "psi": 0.0004,
+      "status": "STABLE"
+    },
+    "TechSupport": {
+      "type": "categorical",
+      "psi": 0.0008,
+      "status": "STABLE"
+    },
+    "StreamingTV": {
+      "type": "categorical",
+      "psi": 0.0028,
+      "status": "STABLE"
+    },
+    "StreamingMovies": {
+      "type": "categorical",
+      "psi": 0.001,
+      "status": "STABLE"
+    },
+    "Contract": {
+      "type": "categorical",
+      "psi": 0.0001,
+      "status": "STABLE"
+    },
+    "PaperlessBilling": {
+      "type": "categorical",
+      "psi": 0.0001,
+      "status": "STABLE"
+    },
+    "PaymentMethod": {
+      "type": "categorical",
+      "psi": 0.0004,
+      "status": "STABLE"
+    },
+    "MonthlyCharges": {
+      "type": "numerical",
+      "psi": 0.0124,
+      "ks_statistic": 0.0321,
+      "ks_pvalue": 0.1912,
+      "status": "STABLE"
+    },
+    "TotalCharges": {
+      "type": "numerical",
+      "psi": 0.0083,
+      "ks_statistic": 0.0294,
+      "ks_pvalue": 0.2791,
+      "status": "STABLE"
+    }
+  },
+  "summary": {
+    "total_features_audited": 19,
+    "stable_features_count": 19,
+    "warning_features_count": 0,
+    "drifted_features_count": 0,
+    "overall_status": "HEALTHY_STABLE"
+  }
+}

@@ -1,0 +1,561 @@
+"""Streamlit Interactive Analytics Dashboard for Customer Churn Engine.
+
+Provides an executive overview, customer risk exploration, single-customer
+what-if prediction simulator, batch CSV scoring, and model performance metrics.
+"""
+
+from pathlib import Path
+import json
+import pandas as pd
+import numpy as np
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
+
+from src.config import settings
+from services.prediction_service import prediction_service
+
+# Page Configuration
+st.set_page_config(
+    page_title="Customer Churn Prediction Engine",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# Custom Styling
+st.markdown(
+    """
+    <style>
+    .metric-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-left: 5px solid #2b5c8f;
+    }
+    .risk-high {
+        color: #d95f02;
+        font-weight: bold;
+    }
+    .risk-med {
+        color: #e6ab02;
+        font-weight: bold;
+    }
+    .risk-low {
+        color: #1b9e77;
+        font-weight: bold;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+@st.cache_data
+def load_historical_data() -> pd.DataFrame:
+    """Load benchmark raw dataset for historical analytics."""
+    if settings.RAW_DATA_PATH.exists():
+        df = pd.read_csv(settings.RAW_DATA_PATH)
+        df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
+        return df
+    return pd.DataFrame()
+
+
+@st.cache_data
+def load_scored_population() -> pd.DataFrame:
+    """Load or generate batch predictions across the full benchmark population."""
+    batch_file = settings.PROCESSED_DATA_PATH.parent / "batch_predictions.csv"
+    if batch_file.exists():
+        return pd.read_csv(batch_file)
+    
+    # If not already exported, score in-memory
+    df_raw = load_historical_data()
+    if not df_raw.empty:
+        return prediction_service.predict_batch(df_raw)
+    return pd.DataFrame()
+
+
+@st.cache_data
+def load_model_evaluation_metrics() -> dict:
+    """Load recorded evaluation metrics from disk."""
+    metrics_path = settings.EVALUATION_DIR / "test_metrics.json"
+    if metrics_path.exists():
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+# Application Header
+st.title("🚀 Customer Churn Prediction Engine")
+st.caption("Production Machine Learning System for Proactive Customer Retention & Risk Intelligence")
+
+# Sidebar Navigation
+st.sidebar.image(
+    "https://img.icons8.com/fluency/96/combo-chart.png",
+    width=64,
+)
+st.sidebar.title("Navigation")
+page = st.sidebar.radio(
+    "Select View:",
+    [
+        "Executive Overview",
+        "Customer Risk Analysis",
+        "Prediction Studio (Single & Batch)",
+        "Model Performance & Metrics",
+        "Business Retention Insights",
+    ],
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Active Model:** `{prediction_service.metadata.get('model_name', 'Tuned XGBoost')}`")
+st.sidebar.markdown(f"**Optimal Cutoff (tau*):** `{prediction_service.decision_threshold:.2f}`")
+st.sidebar.markdown(f"**Version:** `{settings.VERSION}`")
+
+# -------------------------------------------------------------
+# PAGE 1: EXECUTIVE OVERVIEW
+# -------------------------------------------------------------
+if page == "Executive Overview":
+    st.subheader("📈 Executive Overview & Portfolio Health")
+    
+    df_raw = load_historical_data()
+    df_scored = load_scored_population()
+    metrics = load_model_evaluation_metrics()
+    
+    if df_raw.empty:
+        st.warning("Historical dataset not found. Please ensure data is loaded.")
+        st.stop()
+        
+    total_customers = len(df_raw)
+    hist_churn_count = (df_raw["Churn"] == "Yes").sum()
+    hist_churn_rate = (hist_churn_count / total_customers) * 100
+    
+    pred_high_risk = (df_scored["risk_level"] == "High").sum() if not df_scored.empty else 0
+    pred_high_risk_pct = (pred_high_risk / total_customers) * 100 if total_customers else 0
+    
+    # Key Metrics Row
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Total Customers Analyzed", f"{total_customers:,}")
+    with c2:
+        st.metric("Historical Churn Rate", f"{hist_churn_rate:.2f}%", f"{hist_churn_count:,} churned", delta_color="inverse")
+    with c3:
+        st.metric("Predicted High-Risk Accounts", f"{pred_high_risk:,}", f"{pred_high_risk_pct:.1f}% of base", delta_color="inverse")
+    with c4:
+        auc_score = metrics.get("calibrated_final_model", {}).get("roc_auc", 0.8492)
+        st.metric("Model Discrimination (ROC-AUC)", f"{auc_score:.4f}", "Top Performer")
+        
+    st.info(
+        "📌 **Distinction between Historical Churn and Predicted Churn**: "
+        "Historical churn represents customers who have already discontinued service in the training data. "
+        "Predicted churn represents forward-looking probability scores generated by the trained XGBoost model "
+        "to enable proactive retention intervention."
+    )
+    
+    # Visualizations Row
+    col_chart1, col_chart2 = st.columns(2)
+    
+    with col_chart1:
+        st.markdown("#### Historical Churn Class Distribution")
+        fig_pie = px.pie(
+            df_raw,
+            names="Churn",
+            title="Historical Churn Status",
+            color="Churn",
+            color_discrete_map={"No": "#2b5c8f", "Yes": "#d95f02"},
+            hole=0.4,
+        )
+        fig_pie.update_traces(textinfo="percent+label+value")
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+    with col_chart2:
+        st.markdown("#### Predicted Risk Tiers Across Customer Base")
+        if not df_scored.empty:
+            risk_counts = df_scored["risk_level"].value_counts().reset_index()
+            risk_counts.columns = ["Risk Tier", "Customer Count"]
+            fig_bar = px.bar(
+                risk_counts,
+                x="Risk Tier",
+                y="Customer Count",
+                color="Risk Tier",
+                color_discrete_map={"Low": "#1b9e77", "Medium": "#e6ab02", "High": "#d95f02"},
+                text="Customer Count",
+                title="Customer Distribution by Predicted Risk Tier",
+            )
+            fig_bar.update_traces(textposition="outside")
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+# -------------------------------------------------------------
+# PAGE 2: CUSTOMER RISK ANALYSIS
+# -------------------------------------------------------------
+elif page == "Customer Risk Analysis":
+    st.subheader("🔍 Customer Risk Exploration & Cohort Segmentation")
+    
+    df_scored = load_scored_population()
+    if df_scored.empty:
+        st.warning("Scored dataset not available.")
+        st.stop()
+        
+    # Risk Tier KPI Summary
+    r_low = (df_scored["risk_level"] == "Low").sum()
+    r_med = (df_scored["risk_level"] == "Medium").sum()
+    r_high = (df_scored["risk_level"] == "High").sum()
+    
+    k1, k2, k3 = st.columns(3)
+    k1.metric("🟢 Low Risk (< 30%)", f"{r_low:,}", f"{(r_low/len(df_scored))*100:.1f}%")
+    k2.metric("🟡 Medium Risk (30% - 60%)", f"{r_med:,}", f"{(r_med/len(df_scored))*100:.1f}%")
+    k3.metric("🔴 High Risk (≥ 60%)", f"{r_high:,}", f"{(r_high/len(df_scored))*100:.1f}%", delta_color="inverse")
+    
+    st.markdown("---")
+    
+    # Filter Controls
+    st.markdown("#### ⚙️ Filter Customer Population")
+    f1, f2, f3, f4 = st.columns(4)
+    with f1:
+        selected_risk = st.multiselect("Risk Tier", options=["High", "Medium", "Low"], default=["High"])
+    with f2:
+        selected_contract = st.multiselect("Contract Type", options=list(df_scored["Contract"].unique()), default=list(df_scored["Contract"].unique()))
+    with f3:
+        selected_internet = st.multiselect("Internet Service", options=list(df_scored["InternetService"].unique()), default=list(df_scored["InternetService"].unique()))
+    with f4:
+        tenure_range = st.slider("Tenure Range (Months)", 0, int(df_scored["tenure"].max()), (0, 72))
+        
+    # Apply Filters
+    filtered_df = df_scored[
+        (df_scored["risk_level"].isin(selected_risk))
+        & (df_scored["Contract"].isin(selected_contract))
+        & (df_scored["InternetService"].isin(selected_internet))
+        & (df_scored["tenure"] >= tenure_range[0])
+        & (df_scored["tenure"] <= tenure_range[1])
+    ]
+    
+    # Search Box
+    search_query = st.text_input("🔎 Search by Customer ID:", placeholder="e.g. 7590-VHVEG").strip()
+    if search_query:
+        filtered_df = filtered_df[filtered_df["customerID"].str.contains(search_query, case=False, na=False)]
+        
+    st.markdown(f"**Showing {len(filtered_df):,} matching customers**")
+    
+    # Customer Risk Table
+    cols_to_show = [
+        "customerID",
+        "churn_probability",
+        "churn_prediction",
+        "risk_level",
+        "tenure",
+        "MonthlyCharges",
+        "TotalCharges",
+        "Contract",
+        "InternetService",
+        "PaymentMethod",
+    ]
+    st.dataframe(
+        filtered_df[cols_to_show].sort_values(by="churn_probability", ascending=False),
+        use_container_width=True,
+        hide_index=True,
+    )
+    
+    # Risk Distribution Chart
+    st.markdown("#### Churn Probability Density Across Filtered Cohort")
+    fig_hist = px.histogram(
+        filtered_df,
+        x="churn_probability",
+        nbins=40,
+        color="risk_level",
+        color_discrete_map={"Low": "#1b9e77", "Medium": "#e6ab02", "High": "#d95f02"},
+        title="Distribution of Churn Probabilities in Selected Cohort",
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+# -------------------------------------------------------------
+# PAGE 3: PREDICTION STUDIO (SINGLE & BATCH)
+# -------------------------------------------------------------
+elif page == "Prediction Studio (Single & Batch)":
+    st.subheader("🎯 Real-Time Prediction Studio")
+    
+    tab_single, tab_batch = st.tabs(["⚡ Single Customer Scoring (What-If Simulator)", "📂 Batch CSV Prediction & Export"])
+    
+    # SUB-TAB 1: Single Prediction Simulator
+    with tab_single:
+        st.markdown("### Interactive What-If Scenario Analysis")
+        st.caption("Adjust customer attributes below to observe dynamic churn risk and contributing factors.")
+        
+        with st.form("single_prediction_form"):
+            col_a, col_b, col_c = st.columns(3)
+            
+            with col_a:
+                st.markdown("**Demographics & Account**")
+                cust_id = st.text_input("Customer ID", value="CUST-NEW-01")
+                gender = st.selectbox("Gender", ["Female", "Male"])
+                senior = st.selectbox("Senior Citizen", [0, 1], format_func=lambda x: "Yes (1)" if x == 1 else "No (0)")
+                partner = st.selectbox("Has Partner", ["No", "Yes"])
+                dependents = st.selectbox("Has Dependents", ["No", "Yes"])
+                tenure = st.slider("Tenure (Months with Company)", 0, 72, 3)
+                
+            with col_b:
+                st.markdown("**Services Subscribed**")
+                phone = st.selectbox("Phone Service", ["Yes", "No"])
+                multiple_lines = st.selectbox("Multiple Lines", ["No", "Yes", "No phone service"])
+                internet = st.selectbox("Internet Service", ["Fiber optic", "DSL", "No"])
+                security = st.selectbox("Online Security", ["No", "Yes", "No internet service"])
+                backup = st.selectbox("Online Backup", ["No", "Yes", "No internet service"])
+                protection = st.selectbox("Device Protection", ["No", "Yes", "No internet service"])
+                tech = st.selectbox("Tech Support", ["No", "Yes", "No internet service"])
+                streaming_tv = st.selectbox("Streaming TV", ["No", "Yes", "No internet service"])
+                streaming_movies = st.selectbox("Streaming Movies", ["No", "Yes", "No internet service"])
+                
+            with col_c:
+                st.markdown("**Contract & Billing**")
+                contract = st.selectbox("Contract Commitment", ["Month-to-month", "One year", "Two year"])
+                paperless = st.selectbox("Paperless Billing", ["Yes", "No"])
+                payment = st.selectbox(
+                    "Payment Method",
+                    [
+                        "Electronic check",
+                        "Mailed check",
+                        "Bank transfer (automatic)",
+                        "Credit card (automatic)",
+                    ],
+                )
+                monthly = st.slider("Monthly Charges ($)", 18.0, 120.0, 95.0, step=0.5)
+                # Compute estimated total charges based on tenure and monthly bill
+                est_total = round(monthly * max(1, tenure), 2)
+                total_charges = st.number_input("Total Charges ($)", min_value=0.0, value=float(est_total))
+                
+            submit_btn = st.form_submit_button("🔥 Run Real-Time Churn Scoring", use_container_width=True)
+            
+        if submit_btn:
+            input_dict = {
+                "customerID": cust_id,
+                "gender": gender,
+                "SeniorCitizen": senior,
+                "Partner": partner,
+                "Dependents": dependents,
+                "tenure": tenure,
+                "PhoneService": phone,
+                "MultipleLines": multiple_lines,
+                "InternetService": internet,
+                "OnlineSecurity": security,
+                "OnlineBackup": backup,
+                "DeviceProtection": protection,
+                "TechSupport": tech,
+                "StreamingTV": streaming_tv,
+                "StreamingMovies": streaming_movies,
+                "Contract": contract,
+                "PaperlessBilling": paperless,
+                "PaymentMethod": payment,
+                "MonthlyCharges": monthly,
+                "TotalCharges": total_charges,
+            }
+            
+            with st.spinner("Scoring customer through trained XGBoost pipeline..."):
+                pred_result = prediction_service.predict_single(input_dict)
+                
+            st.markdown("### 📋 Prediction Diagnostic Report")
+            res_col1, res_col2, res_col3 = st.columns(3)
+            
+            prob = pred_result["churn_probability"]
+            tier = pred_result["risk_level"]
+            decision = pred_result["prediction"]
+            
+            with res_col1:
+                # Gauge representation
+                fig_gauge = go.Figure(
+                    go.Indicator(
+                        mode="gauge+number",
+                        value=prob * 100,
+                        title={"text": "Churn Probability (%)"},
+                        gauge={
+                            "axis": {"range": [0, 100]},
+                            "bar": {"color": "#d95f02" if prob >= 0.54 else "#2b5c8f"},
+                            "steps": [
+                                {"range": [0, 30], "color": "#d4edda"},
+                                {"range": [30, 60], "color": "#fff3cd"},
+                                {"range": [60, 100], "color": "#f8d7da"},
+                            ],
+                            "threshold": {
+                                "line": {"color": "black", "width": 4},
+                                "thickness": 0.75,
+                                "value": pred_result["decision_threshold_applied"] * 100,
+                            },
+                        },
+                    )
+                )
+                fig_gauge.update_layout(height=240, margin=dict(l=20, r=20, t=30, b=20))
+                st.plotly_chart(fig_gauge, use_container_width=True)
+                
+            with res_col2:
+                st.markdown(f"**Customer Identifier:** `{pred_result['customer_id']}`")
+                st.markdown(f"**Binary Classification:** `{'🚨 LIKELY TO CHURN (Yes)' if decision == 'Yes' else '✅ LIKELY TO STAY (No)'}`")
+                
+                badge_color = "#d95f02" if tier == "High" else "#e6ab02" if tier == "Medium" else "#1b9e77"
+                st.markdown(f"**Assigned Risk Tier:** <span style='background-color:{badge_color}; color:white; padding:4px 10px; border-radius:4px; font-weight:bold;'>{tier} Risk</span>", unsafe_allow_html=True)
+                st.markdown(f"**Active Decision Cutoff:** `{pred_result['decision_threshold_applied']:.2f}`")
+                st.markdown(f"**Model Engine:** `{pred_result['model_version']}`")
+                
+            with res_col3:
+                st.markdown("**Key Risk Drivers Detected:**")
+                for factor in pred_result["key_risk_factors"]:
+                    st.markdown(f"- ⚠️ {factor}")
+                    
+    # SUB-TAB 2: Batch CSV Scoring
+    with tab_batch:
+        st.markdown("### 📂 High-Throughput Batch Scoring")
+        st.caption("Upload a CSV file containing customer records to score all accounts simultaneously.")
+        
+        uploaded_file = st.file_uploader("Upload Customer CSV File", type=["csv"])
+        custom_thresh = st.slider("Custom Decision Threshold (Optional)", 0.10, 0.90, float(prediction_service.decision_threshold), 0.02)
+        
+        if uploaded_file is not None:
+            try:
+                batch_df = pd.read_csv(uploaded_file)
+                st.success(f"Uploaded `{uploaded_file.name}` ({len(batch_df):,} records detected)")
+                
+                if st.button("🚀 Score Entire Batch", use_container_width=True):
+                    with st.spinner("Executing vectorized scoring pipeline..."):
+                        scored_output = prediction_service.predict_batch(batch_df, threshold=custom_thresh)
+                        
+                    st.markdown("### 📊 Batch Scoring Results")
+                    b1, b2, b3 = st.columns(3)
+                    churn_count = (scored_output["churn_prediction"] == "Yes").sum()
+                    b1.metric("Predicted Churners", f"{churn_count:,}", f"{(churn_count/len(scored_output))*100:.1f}%")
+                    b2.metric("Predicted Retained", f"{(len(scored_output)-churn_count):,}", f"{((len(scored_output)-churn_count)/len(scored_output))*100:.1f}%")
+                    b3.metric("High-Risk Accounts", f"{(scored_output['risk_level'] == 'High').sum():,}")
+                    
+                    st.dataframe(scored_output.head(20), use_container_width=True)
+                    
+                    csv_bytes = scored_output.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        label="📥 Download Scored Predictions CSV",
+                        data=csv_bytes,
+                        file_name=f"scored_{uploaded_file.name}",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+            except Exception as e:
+                st.error(f"Error processing CSV: {e}")
+
+# -------------------------------------------------------------
+# PAGE 4: MODEL PERFORMANCE & METRICS
+# -------------------------------------------------------------
+elif page == "Model Performance & Metrics":
+    st.subheader("🧪 Model Verification & Discrimination Analytics")
+    
+    metrics = load_model_evaluation_metrics()
+    if not metrics:
+        st.warning("Model evaluation metrics not found.")
+        st.stop()
+        
+    # Top KPI Metrics Cards
+    final_metrics = metrics.get("calibrated_final_model", {})
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Test ROC-AUC", f"{final_metrics.get('roc_auc', 0.8492):.4f}")
+    m2.metric("Test PR-AUC", f"{final_metrics.get('pr_auc', 0.6637):.4f}")
+    m3.metric("Test Recall", f"{final_metrics.get('recall', 0.7914)*100:.1f}%", "79.1% of Churners Detected")
+    m4.metric("Test Precision", f"{final_metrics.get('precision', 0.5441)*100:.1f}%")
+    m5.metric("Optimal Cutoff (tau*)", f"{metrics.get('optimal_threshold', 0.54):.2f}")
+    
+    st.markdown("---")
+    
+    # Model Comparison Table
+    st.markdown("#### 🏆 Architecture Comparison on Held-Out Test Set (N = 1,409)")
+    models_dict = metrics.get("models", {})
+    if models_dict:
+        comp_rows = []
+        for name, data in models_dict.items():
+            comp_rows.append({
+                "Model Architecture": name,
+                "Accuracy": f"{data['accuracy']:.4f}",
+                "Precision": f"{data['precision']:.4f}",
+                "Recall": f"{data['recall']:.4f}",
+                "F1-Score": f"{data['f1_score']:.4f}",
+                "ROC-AUC": f"{data['roc_auc']:.4f}",
+                "PR-AUC": f"{data['pr_auc']:.4f}",
+                "Brier Score": f"{data['brier_score']:.4f}",
+            })
+        st.table(pd.DataFrame(comp_rows))
+        
+    st.markdown("---")
+    
+    # Visual Curves Display
+    st.markdown("#### 📉 Evaluation Diagnostic Curves")
+    c_img1, c_img2 = st.columns(2)
+    
+    roc_img = settings.EVALUATION_DIR / "roc_curves.png"
+    pr_img = settings.EVALUATION_DIR / "precision_recall_curves.png"
+    thresh_img = settings.EVALUATION_DIR / "threshold_tuning_curve.png"
+    cm_img = settings.EVALUATION_DIR / "confusion_matrices.png"
+    
+    with c_img1:
+        if roc_img.exists():
+            st.image(str(roc_img), caption="ROC Curves (Discrimination across all cutoffs)", use_container_width=True)
+        if thresh_img.exists():
+            st.image(str(thresh_img), caption="Decision Threshold Trade-off Curve", use_container_width=True)
+            
+    with c_img2:
+        if pr_img.exists():
+            st.image(str(pr_img), caption="Precision-Recall Curves (Class Imbalance Focus)", use_container_width=True)
+        if cm_img.exists():
+            st.image(str(cm_img), caption="Held-Out Test Confusion Matrices", use_container_width=True)
+
+# -------------------------------------------------------------
+# PAGE 5: BUSINESS INSIGHTS & RETENTION STRATEGY
+# -------------------------------------------------------------
+elif page == "Business Retention Insights":
+    st.subheader("💡 Strategic Business Retention Playbook")
+    
+    st.markdown(
+        """
+        ### 🎯 Core Churn Drivers & Targeted Interventions
+        
+        Based on empirical data analysis across the customer portfolio, the following 4 strategic initiatives represent the highest-leverage retention opportunities.
+        """
+    )
+    
+    b1, b2 = st.columns(2)
+    
+    with b1:
+        st.markdown(
+            """
+            #### 1. The Month-to-Month Contract Bridge
+            - **Data Evidence:** Month-to-month subscribers exhibit a **42.71% churn rate**, compared to **11.27%** for 1-year and **2.83%** for 2-year agreements.
+            - **Hypothesis:** Month-to-month contracts have zero friction to cancel. Transitioning customers to annual contracts drastically improves customer lifetime value.
+            - **Recommended Action:** Offer a targeted contract conversion incentive (e.g., *“Lock in your current monthly rate for 12 months plus receive 1 free month”*) specifically to month-to-month customers who cross into Month 6 of tenure.
+            - **Measurement Strategy:** Conduct an A/B test comparing cohort churn rates of targeted versus control groups.
+            """
+        )
+        
+        st.markdown(
+            """
+            #### 2. The First-Year Onboarding Safety Net
+            - **Data Evidence:** The first 12 months exhibit an attrition cliff (**47.68% churn rate**). Retention stabilizes above 80% once accounts pass month 24.
+            - **Hypothesis:** Early dissatisfaction (billing surprises, unassisted setup issues) drives premature cancellation before brand loyalty is established.
+            - **Recommended Action:** Implement automated concierge check-ins at Day 14, Day 45, and Day 90 for all new accounts to proactively resolve technical friction.
+            """
+        )
+        
+    with b2:
+        st.markdown(
+            """
+            #### 3. Fiber Optic Support Bundling
+            - **Data Evidence:** Fiber optic customers without Tech Support have an acute churn rate of over **41%**, and `is_fiber_no_techsupport` has a **+0.352 correlation with churn**.
+            - **Hypothesis:** Fiber optic is the company's highest-cost tier (~$90/mo). When customers experience outages or configuration issues without support, price sensitivity triggers defection.
+            - **Recommended Action:** Automatically bundle complimentary 6-month Tech Support and Online Security into all new Fiber Optic installations.
+            """
+        )
+        
+        st.markdown(
+            """
+            #### 4. Frictionless Recurring Auto-Pay Migration
+            - **Data Evidence:** Customers paying via manual Electronic Check churn at **45.29%**, compared to **~15%** for Credit Card and Bank Auto-Pay.
+            - **Hypothesis:** Manual check payments force customers to actively re-evaluate their bills every month.
+            - **Recommended Action:** Provide a one-time $10 billing credit for switching to recurring automated payment methods.
+            """
+        )
+        
+    st.markdown("---")
+    st.warning(
+        "⚠️ **Operational Caution**: Do not issue blanket discounts to all customers flagged as high risk. "
+        "A $20/month discount offered to a customer who would have stayed anyway erodes profit margin. "
+        "Interventions should focus primarily on service quality improvements, onboarding assistance, and contract incentives."
+    )
